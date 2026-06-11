@@ -1,0 +1,76 @@
+import streamlit as st
+import pandas as pd
+import requests
+
+# Load Dataset
+df = pd.read_csv("Dataset.csv")
+
+df["City"] = df["City"].fillna("Unknown")
+df["Cuisines"] = df["Cuisines"].fillna("Unknown")
+
+# Get user's city from IP
+try:
+    response = requests.get("https://ipinfo.io/json").json()
+    current_city = response.get("city", "")
+except:
+    current_city = ""
+
+st.title("🍽 Restaurant Recommendation System")
+
+st.write(f"📍 Detected Location: {current_city}")
+
+# Default city
+cities = sorted(df["City"].unique())
+
+if current_city in cities:
+    default_index = cities.index(current_city)
+else:
+    default_index = 0
+
+city = st.selectbox(
+    "Select City",
+    cities,
+    index=default_index
+)
+
+cuisine = st.text_input("Preferred Cuisine", "")
+
+price_range = st.selectbox(
+    "Price Range",
+    sorted(df["Price range"].unique())
+)
+
+if st.button("Recommend Restaurants"):
+
+    recommendations = df[
+        (df["City"] == city) &
+        (df["Price range"] == price_range)
+    ]
+
+    if cuisine:
+        recommendations = recommendations[
+            recommendations["Cuisines"].str.contains(
+                cuisine,
+                case=False,
+                na=False
+            )
+        ]
+
+    recommendations = recommendations.sort_values(
+        by=["Aggregate rating", "Votes"],
+        ascending=False
+    )
+
+    st.subheader("Top Recommendations")
+
+    st.dataframe(
+        recommendations[
+            [
+                "Restaurant Name",
+                "Cuisines",
+                "Average Cost for two",
+                "Aggregate rating",
+                "Votes"
+            ]
+        ].head(10)
+    )
